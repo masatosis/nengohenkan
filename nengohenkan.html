@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>和暦を西暦に変換</title>
+  <style>
+    #inputText {
+      width: 400px;
+      height: 100px;
+    }
+  </style>
+  <script>
+    const eraMap = {
+      "明治": 1868,
+      "大正": 1912,
+      "昭和": 1926,
+      "平成": 1989,
+      "令和": 2019
+    };
+
+    const erawareki = {
+      "M": "明治",
+      "T": "大正",
+      "S": "昭和",
+      "H": "平成",
+      "R": "令和"
+    };
+
+    function convertEra() {
+      const input = document.getElementById("inputText").value;
+
+      const hidden = input.replace(/(M|T|S|H|R)([0-9]+)(年|\.)/g, function (match, era, year) {
+        const wareki = erawareki[era];
+        return wareki + year + "年";
+      });
+
+      const output = hidden.replace(/(明治|大正|昭和|平成|令和)([0-9]+)年/g, function (match, era, year) {
+        const eraYear = parseInt(year);
+        const adYear = eraMap[era] + eraYear - 1;
+        return adYear + "年";
+      });
+
+      document.getElementById("outputText").value = output;
+    }
+  </script>
+</head>
+<body>
+  <h1>和暦を西暦に変換</h1>
+  <label for="inputText">文章を入力してください:</label>
+  <br>
+  <textarea id="inputText" rows="5" cols="50"></textarea>
+  <br>
+  <button onclick="convertEra()">変換する</button>
+  <br>
+  <label for="outputText">変換結果:</label>
+  <br>
+  <textarea id="outputText" rows="5" cols="50" readonly></textarea>
+</body>
+</html>
