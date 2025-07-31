@@ -1,16 +1,82 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <title>和暦を西暦に変換</title>
+  <title>和暦西暦相互変換ツール</title>
   <style>
-    #inputText {
-      width: 400px;
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    #inputText,
+    #outputText {
+      width: 100%;
       height: 100px;
+      margin: 10px 0;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    .mode-container {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .radio-option input[type="radio"] {
+      margin: 0;
+    }
+
+    .radio-option label {
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .convert-button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+
+    .convert-button:hover {
+      background-color: #0056b3;
+    }
+
+    .label {
+      font-weight: bold;
+      margin: 10px 0 5px 0;
+    }
+
+    .mode-label {
+      font-size: 16px;
+      font-weight: bold;
     }
   </style>
   <script>
+    // 年号データ
     const eraMap = {
       "明治": 1868,
       "大正": 1912,
@@ -27,34 +93,216 @@
       "R": "令和"
     };
 
-    function convertEra() {
-      const input = document.getElementById("inputText").value;
+    // 年号の終了年
+    const eraEndMap = {
+      "明治": 1912,
+      "大正": 1926,
+      "昭和": 1989,
+      "平成": 2019,
+      "令和": 9999 // 現在進行中
+    };
 
-      const hidden = input.replace(/(M|T|S|H|R)([0-9]+)(年|\.)/g, function (match, era, year) {
+    // 年号切り替え日付データ（月日を考慮した正確な変換用）
+    const eraTransitions = [
+      { era: "令和", startYear: 2019, startMonth: 5, startDay: 1, endYear: 9999, endMonth: 12, endDay: 31 },
+      { era: "平成", startYear: 1989, startMonth: 1, startDay: 8, endYear: 2019, endMonth: 4, endDay: 30 },
+      { era: "昭和", startYear: 1926, startMonth: 12, startDay: 25, endYear: 1989, endMonth: 1, endDay: 7 },
+      { era: "大正", startYear: 1912, startMonth: 7, startDay: 30, endYear: 1926, endMonth: 12, endDay: 24 },
+      { era: "明治", startYear: 1868, startMonth: 10, startDay: 23, endYear: 1912, endMonth: 7, endDay: 29 }
+    ];
+
+    let isWarekiToSeireki = true; // true: 和暦→西暦, false: 西暦→和暦
+
+    function changeMode() {
+      const warekiToSeirekiRadio = document.getElementById("warekiToSeireki");
+      isWarekiToSeireki = warekiToSeirekiRadio.checked;
+
+      // 出力欄のみクリア（入力欄は保持）
+      document.getElementById("outputText").value = "";
+    }
+
+    // 和暦→西暦変換
+    function convertWarekiToSeireki(input) {
+      // 略記号を正式名称に変換
+      let hidden = input.replace(/(M|T|S|H|R)([0-9]+)(年|\.)/g, function (match, era, year) {
         const wareki = erawareki[era];
         return wareki + year + "年";
       });
 
+      // 略記号の年月形式対応（R3.5月など）
+      hidden = hidden.replace(/(M|T|S|H|R)([0-9]+)\.([0-9]+)月/g, function (match, era, year, month) {
+        const wareki = erawareki[era];
+        return wareki + year + "年" + month + "月";
+      });
+
+      // 略記号の元年対応（M元年、T元年など）
+      hidden = hidden.replace(/(M|T|S|H|R)元年/g, function (match, era) {
+        const wareki = erawareki[era];
+        return wareki + "元年";
+      });
+
+      // 元年を1年に変換
+      hidden = hidden.replace(/(明治|大正|昭和|平成|令和)元年/g, function (match, era) {
+        return era + "1年";
+      });
+
+      // 和暦年月を西暦に変換
+      hidden = hidden.replace(/(明治|大正|昭和|平成|令和)([0-9]+)年([0-9]+)月/g, function (match, era, year, month) {
+        const eraYear = parseInt(year);
+        const adYear = eraMap[era] + eraYear - 1;
+        return adYear + "年" + month + "月";
+      });
+
+      // 和暦を西暦に変換
       const output = hidden.replace(/(明治|大正|昭和|平成|令和)([0-9]+)年/g, function (match, era, year) {
         const eraYear = parseInt(year);
         const adYear = eraMap[era] + eraYear - 1;
         return adYear + "年";
       });
 
+      return output;
+    }
+
+    // 日付が年号の範囲内かチェック
+    function isDateInEra(year, month, day, eraData) {
+      const inputDate = new Date(year, month - 1, day || 1);
+      const startDate = new Date(eraData.startYear, eraData.startMonth - 1, eraData.startDay);
+      const endDate = new Date(eraData.endYear, eraData.endMonth - 1, eraData.endDay);
+
+      return inputDate >= startDate && inputDate <= endDate;
+    }
+
+    // 月日を考慮した西暦→和暦変換
+    function convertSeirekiToWarekiWithDate(year, month, day) {
+      const adYear = parseInt(year);
+      const adMonth = month ? parseInt(month) : 1;
+      const adDay = day ? parseInt(day) : 1;
+
+      // 適切な年号を見つける（月日を考慮）
+      for (const eraData of eraTransitions) {
+        if (isDateInEra(adYear, adMonth, adDay, eraData)) {
+          const eraYear = adYear - eraData.startYear + 1;
+          return eraData.era + eraYear + "年" + (month ? month + "月" : "") + (day ? day + "日" : "");
+        }
+      }
+
+      return year + "年" + (month ? month + "月" : "") + (day ? day + "日" : ""); // 変換できない場合はそのまま
+    }
+
+    // 西暦→和暦変換（従来の年のみ + 新しい年月日対応）
+    function convertSeirekiToWareki(input) {
+      // 年月日形式のパターン（1989年1月8日）
+      let output = input.replace(/([0-9]{4})年([0-9]{1,2})月([0-9]{1,2})日/g, function (match, year, month, day) {
+        return convertSeirekiToWarekiWithDate(year, month, day);
+      });
+
+      // 年月形式のパターン（1989年1月）
+      output = output.replace(/([0-9]{4})年([0-9]{1,2})月/g, function (match, year, month) {
+        return convertSeirekiToWarekiWithDate(year, month);
+      });
+
+      // 年のみの形式（従来通り）
+      output = output.replace(/([0-9]{4})年/g, function (match, year) {
+        const adYear = parseInt(year);
+
+        // 適切な年号を見つける（従来ロジック）
+        let era = null;
+        let eraYear = 0;
+
+        for (const [eraName, startYear] of Object.entries(eraMap)) {
+          if (adYear >= startYear && adYear < eraEndMap[eraName]) {
+            era = eraName;
+            eraYear = adYear - startYear + 1;
+            break;
+          }
+        }
+
+        if (era && eraYear > 0) {
+          return era + eraYear + "年";
+        } else {
+          return match; // 変換できない場合はそのまま
+        }
+      });
+
+      return output;
+    }
+
+    function convertEra() {
+      const input = document.getElementById("inputText").value;
+      let output;
+
+      if (isWarekiToSeireki) {
+        output = convertWarekiToSeireki(input);
+      } else {
+        output = convertSeirekiToWareki(input);
+      }
+
       document.getElementById("outputText").value = output;
     }
+
+    // ページ読み込み時の初期化
+    window.onload = function () {
+      document.getElementById("warekiToSeireki").checked = true;
+    };
   </script>
 </head>
+
 <body>
-  <h1>和暦を西暦に変換</h1>
-  <label for="inputText">文章を入力してください:</label>
-  <br>
-  <textarea id="inputText" rows="5" cols="50"></textarea>
-  <br>
-  <button onclick="convertEra()">変換する</button>
-  <br>
-  <label for="outputText">変換結果:</label>
-  <br>
+  <h1>和暦西暦相互変換ツール</h1>
+
+  <div class="mode-container">
+    <div class="mode-label">変換モード:</div>
+    <div class="radio-group">
+      <div class="radio-option">
+        <input type="radio" id="warekiToSeireki" name="conversionMode" onchange="changeMode()" checked>
+        <label for="warekiToSeireki">和暦 → 西暦</label>
+      </div>
+      <div class="radio-option">
+        <input type="radio" id="seirekiToWareki" name="conversionMode" onchange="changeMode()">
+        <label for="seirekiToWareki">西暦 → 和暦</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="label">文章を入力してください:</div>
+  <textarea id="inputText" rows="5" cols="50" placeholder="例: 昭和34年、S34年、平成元年、H元年、1959年、1989年1月8日"></textarea>
+
+  <button class="convert-button" onclick="convertEra()">変換する</button>
+
+  <div class="label">変換結果:</div>
   <textarea id="outputText" rows="5" cols="50" readonly></textarea>
+
+  <div style="margin-top: 30px; padding: 15px; background-color: #f5f5f5; border-radius: 5px;">
+    <h3>使用方法</h3>
+    <p><strong>和暦 → 西暦モード:</strong></p>
+    <ul>
+      <li>明治、大正、昭和、平成、令和の年号を西暦に変換</li>
+      <li>元年表記に対応: "平成元年" → "1989年"</li>
+      <li>略記号も使用可能: M(明治), T(大正), S(昭和), H(平成), R(令和)</li>
+      <li>略記号の元年: "H元年" → "1989年"</li>
+      <li>例: "昭和34年" → "1959年", "S34年" → "1959年"</li>
+    </ul>
+    <p><strong>西暦 → 和暦モード:</strong></p>
+    <ul>
+      <li>西暦年を対応する和暦に変換（年のみ）</li>
+      <li>年月日形式での正確な変換に対応</li>
+      <li>例: "1959年" → "昭和34年"</li>
+      <li>例: "1989年1月7日" → "昭和64年1月7日"</li>
+      <li>例: "1989年1月8日" → "平成元年1月8日"</li>
+      <li>例: "2019年4月30日" → "平成31年4月30日"</li>
+      <li>例: "2019年5月1日" → "令和元年5月1日"</li>
+    </ul>
+
+    <div
+      style="margin-top: 20px; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 3px;">
+      <h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ 注意事項</h4>
+      <p style="margin: 0; color: #856404; font-size: 14px;">
+        <strong>元号切り替え日付について:</strong><br>
+        西暦→和暦変換では、年月日形式（例：1989年1月8日）を入力することで正確な元号変換が可能です。年のみの場合は従来通り年全体を新元号として扱います。<br>
+        <strong>主な切り替え日:</strong> 平成元年1月8日、令和元年5月1日
+      </p>
+    </div>
+  </div>
 </body>
+
 </html>
